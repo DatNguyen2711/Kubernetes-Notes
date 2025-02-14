@@ -1,25 +1,37 @@
 # K8S networking Deepdive
 
 
-Khái niệm ngắn gọn về NAT, DNAT, SNAT và các khái niệm liên quan:
+1️⃣ Tổng quan về NAT, DNAT, SNAT và các khái niệm liên quan
 
-NAT (Network Address Translation): Là kỹ thuật thay đổi địa chỉ IP trong gói tin khi chúng đi qua một thiết bị mạng, giúp thay đổi địa chỉ nguồn hoặc đích của gói tin.
+🔹 NAT (Network Address Translation)
 
-DNAT (Destination NAT): Là loại NAT thay đổi địa chỉ đích của gói tin. DNAT thường được dùng để chuyển tiếp lưu lượng đến các máy chủ cụ thể trong một mạng nội bộ.
+Là kỹ thuật thay đổi địa chỉ IP trong gói tin khi chúng đi qua một thiết bị mạng, giúp thay đổi địa chỉ nguồn hoặc đích của gói tin.
 
-VD: Khi yêu cầu đến một service trong Kubernetes, DNAT sẽ chuyển hướng yêu cầu đến một trong các pod backend.
-SNAT (Source NAT): Là loại NAT thay đổi địa chỉ nguồn của gói tin. SNAT thường được dùng khi các gói tin rời khỏi mạng nội bộ và cần thay đổi địa chỉ nguồn để gói tin có thể quay lại.
+🔹 DNAT (Destination NAT)
 
-VD: Khi một pod gửi yêu cầu ra ngoài internet, SNAT thay đổi địa chỉ nguồn của gói tin thành địa chỉ IP của node (để gói tin có thể quay lại).
-MASQUERADE: Là một dạng SNAT tự động thay đổi địa chỉ IP nguồn của gói tin khi rời khỏi mạng, thường được dùng trong các mạng động như Kubernetes.
+Là loại NAT thay đổi địa chỉ đích của gói tin. Thường được dùng để chuyển tiếp lưu lượng đến các máy chủ nội bộ.
 
+Ví dụ: Khi một yêu cầu đến Service trong Kubernetes, DNAT sẽ chuyển hướng yêu cầu đến một trong các Pod backend.
 
+🔹 SNAT (Source NAT)
 
-có 2 kiểu giao tiếp trên K8S:
-Pod to Pod: trường hợp pod cùng nằm trên cụm thì chúng sẽ giao tiếp thẳng qua IP.
-Pod to Service: 
-1. Khi chúng ta tạo 1 services trỏ vào các pod (qua labels) thì sẽ có 1 tạo nguyên được tạo thêm là endpoints (chứa ip của các POD mà svc trỏ 
-đến)
+Là loại NAT thay đổi địa chỉ nguồn của gói tin. Thường được dùng khi gói tin rời khỏi mạng nội bộ.
+
+Ví dụ: Khi một Pod gửi yêu cầu ra ngoài internet, SNAT thay đổi địa chỉ nguồn thành IP của node để gói tin có thể quay lại.
+
+🔹 MASQUERADE
+
+Là một dạng SNAT tự động thay đổi địa chỉ IP nguồn của gói tin khi rời khỏi mạng, thường được dùng trong các mạng động như Kubernetes.
+
+2️⃣ Kiểu giao tiếp trong Kubernetes
+
+🔹 Pod-to-Pod
+
+Nếu các Pod nằm trong cùng một cụm (cluster), chúng giao tiếp trực tiếp qua địa chỉ IP.Pod to Service: 
+
+🔹 Pod-to-Service
+
+Khi tạo một Service trỏ vào các Pod (qua labels), Kubernetes tạo một Endpoint chứa IP của các Pod mà Service trỏ đến:
 
 ```bash
 root@datnd-master-node:~# kg ep -n myapp

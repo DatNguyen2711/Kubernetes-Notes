@@ -150,3 +150,15 @@ Trả kết quả: Kết quả được trả lại cho pod gửi yêu cầu qua
 > Lưu ý:
 Kube-Proxy tự động tạo các quy tắc iptables để thực hiện việc chuyển tiếp lưu lượng giữa các Pod và dịch vụ.
 Kube-Proxy cũng xử lý cân bằng tải, đảm bảo rằng yêu cầu đến dịch vụ được phân phối đồng đều giữa các pod backend.
+
+
+> Facts:
+
+A Service’s ClusterIP is a virtual IP (VIP), meaning it doesn’t have a physical network entity but is used for handling packet routing.
+
+#### Sources
+
+[Kube-Proxy-vs-CNI](https://medium.com/@rifewang/kubernetes-how-kube-proxy-and-cni-work-together-1255d273f291)
+
+
+[Kube-Proxy-how-its-working](https://medium.com/@amroessameldin/kube-proxy-what-is-it-and-how-it-works-6def85d9bc8f)

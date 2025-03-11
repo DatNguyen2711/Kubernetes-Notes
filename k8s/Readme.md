@@ -1,7 +1,3 @@
-# Kubernetes Notes
-
-Welcome to my Kubernetes documentation. Below are the main sections and links to the detailed documents.
-
 ## Table of Contents
 1. Cluster Management
     - Clean K8s Worker Node

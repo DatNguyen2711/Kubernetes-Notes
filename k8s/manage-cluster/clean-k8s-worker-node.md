@@ -70,4 +70,4 @@ root@DEV-RKE2-Worker-02:~# ps -eo pid,ppid,stat,cmd | grep 'Z'
 
 
 
-> Tìm hiểu thêm về process trong Linux: [text](https://viblo.asia/p/basic-process-management-quan-ly-tien-trinh-trong-unixlinux-co-ban-LzD5der0KjY)
+> Tìm hiểu thêm về process trong Linux: [Basic Process Management](https://viblo.asia/p/basic-process-management-quan-ly-tien-trinh-trong-unixlinux-co-ban-LzD5der0KjY)

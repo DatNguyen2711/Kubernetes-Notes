@@ -1,73 +1,71 @@
-## Normal Cluster
+# **RKE Worker Node Maintenance Guide**
 
-## RKE
+## **1. Free Disk Space in Worker Node**
 
+### **Nguyên nhân**
+Thông thường, disk bị đầy là do có quá nhiều **image layers cũ** và **image không sử dụng**, không phải do logs (logs thường chiếm rất ít disk, có thể chưa đến 1GB).
 
-### Free disk space in worker-node
+### **Cách giải quyết**
+#### **Trường hợp không có crictl trên node:**
+1. Thiết lập biến môi trường để sử dụng crictl:
+    ```bash
+    echo "export CRI_RUNTIME_ENDPOINT=unix:///run/k3s/containerd/containerd.sock" >> ~/.bashrc
+    echo "export PATH=$PATH:/var/lib/rancher/rke2/bin" >> ~/.bashrc
+    source ~/.bashrc
+    ```
 
-![alt text](image-1.png)
+2. Xóa tất cả các image không sử dụng:
+    ```bash
+    /var/lib/rancher/rke2/bin/crictl --runtime-endpoint unix:///run/k3s/containerd/containerd.sock rmi --prune
+    crictl images --prune
+    ```
+---
 
-1. Thường cụm đầy disk là do có quá nhiều images layer cũ và các images ko sử dụng nữa chứ ko phải do logs (logs chiếm ít disk có thể chưa
-đến 1GB)
-2. Trong trường hợp node không có crictl:
+## **2. Clear Zombie Processes in Worker Node**
 
+### **Nguyên nhân**
+Khi worker node báo có quá nhiều process, thường là do các **zombie process** chưa được giải phóng.
+
+### **Cách giải quyết**
+
+#### **1. Kiểm tra tổng số lượng process đang chạy**
 ```bash
-echo "export CRI_RUNTIME_ENDPOINT=unix:///run/k3s/containerd/containerd.sock" >> ~/.bashrc
-echo "export PATH=$PATH:/var/lib/rancher/rke2/bin" >> ~/.bashrc
-source  ~/.bashrc
-
-
-# remove all unused images
-/var/lib/rancher/rke2/bin/crictl --runtime-endpoint unix:///run/k3s/containerd/containerd.sock rmi --prune
-crictl images --prune
-
+ps aux | wc -l
 ```
-
-
-### Clear process in worker-node
-
-![alt text](image.png)
-
-
-1. Trong trường hợp worker báo có quá nhiều process đang chạy thì ta sẽ xóa các zombie process
-
-- List ra các số lượng các process dùng lệnh **top**
-
-![alt text](image-2.png)
-
-
-- Kiểm tra số lượng các process đang chạy
-
+*Ví dụ output:*
 ```bash
-
 root@DEV-RKE2-Worker-02:~# ps aux | wc -l
 634
 ```
 
-- Lấy ra danh sách các process **zombie process** đang chạy
-
+#### **2. Kiểm tra danh sách các zombie process**
 ```bash
-
-root@DEV-RKE2-Worker-02:~# ps -eo pid,ppid,stat,cmd | grep 'Z' # kiểm tra các zombie process, bao gồm PID PPID ,...
-
+ps -eo pid,ppid,stat,cmd | grep 'Z'
 ```
-![alt text](image-3.png)
 
-> Từ output, cha của các zombie process (PPID) là 3000731 và 3000732.
+*Ví dụ output:*
+```
+PID     PPID    STAT    CMD
+731    3000732  Z       [mongosh mongodb] <defunct>
+4423   3000731  Z       [mongosh mongodb] <defunct>
+5819   3000732  Z       [mongosh mongodb] <defunct>
+```
+> **Lưu ý:** Cột **PPID** là Parent Process ID. Nếu nhiều zombie process có cùng **PPID**, ta cần xử lý process cha đó.
 
--  Chạy lệnh sau để xóa chúng:
-
+#### **3. Kill process cha để xóa zombie process**
 ```bash
-root@DEV-RKE2-Worker-02:~# kill -9 3000731 3000732
-
-root@DEV-RKE2-Worker-02:~# ps -eo pid,ppid,stat,cmd | grep 'Z'
-
-
+kill -9 3000731 3000732
 ```
-![alt text](image-4.png)
+> **Lưu ý:** Thay `3000731 3000732` bằng PPID thực tế của zombie process.
 
-![alt text](image-5.png)
+#### **4. Kiểm tra lại zombie process đã bị xóa chưa**
+```bash
+ps -eo pid,ppid,stat,cmd | grep 'Z'
+```
+Nếu output trống nghĩa là đã xóa thành công.
 
+---
 
+### **Tham khảo thêm**
+- **Quản lý process trong Linux**: [Basic Process Management](https://viblo.asia/p/basic-process-management-quan-ly-tien-trinh-trong-unixlinux-co-ban-LzD5der0KjY)
 
-> Tìm hiểu thêm về process trong Linux: [Basic Process Management](https://viblo.asia/p/basic-process-management-quan-ly-tien-trinh-trong-unixlinux-co-ban-LzD5der0KjY)

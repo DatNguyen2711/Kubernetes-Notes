@@ -2,6 +2,8 @@
 
 ## **1. Free Disk Space in Worker Node**
 
+![alt](image-1.png)
+
 ### **Nguyên nhân**
 Thông thường, disk bị đầy là do có quá nhiều **image layers cũ** và **image không sử dụng**, không phải do logs (logs thường chiếm rất ít disk, có thể chưa đến 1GB).
 
@@ -22,7 +24,7 @@ Thông thường, disk bị đầy là do có quá nhiều **image layers cũ** 
 ---
 
 ## **2. Clear Zombie Processes in Worker Node**
-
+![alt](image.png)
 ### **Nguyên nhân**
 Khi worker node báo có quá nhiều process, thường là do các **zombie process** chưa được giải phóng.
 
@@ -48,8 +50,20 @@ ps -eo pid,ppid,stat,cmd | grep 'Z'
 PID     PPID    STAT    CMD
 731    3000732  Z       [mongosh mongodb] <defunct>
 4423   3000731  Z       [mongosh mongodb] <defunct>
+5449   3000732  Z       [mongosh mongodb] <defunct>
+5349   3000732  Z       [mongosh mongodb] <defunct>
 5819   3000732  Z       [mongosh mongodb] <defunct>
+5319   3000732  Z       [mongosh mongodb] <defunct>
+1819   3000732  Z       [mongosh mongodb] <defunct>
+7819   3000732  Z       [mongosh mongodb] <defunct>
+5899   3000732  Z       [mongosh mongodb] <defunct>
+7659   3000732  Z       [mongosh mongodb] <defunct>
+8819   3000732  Z       [mongosh mongodb] <defunct>
+9919   3000732  Z       [mongosh mongodb] <defunct>
 ```
+
+![alt](image-3.png)
+
 > **Lưu ý:** Cột **PPID** là Parent Process ID. Nếu nhiều zombie process có cùng **PPID**, ta cần xử lý process cha đó.
 
 #### **3. Kill process cha để xóa zombie process**

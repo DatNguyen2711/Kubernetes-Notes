@@ -19,7 +19,7 @@
 ```bash 
 
 
-fail -f /var/log/nginx/forum.gsm.access.log
+tail -f /var/log/nginx/forum.gsm.access.log
 ```
 
 ![alt text](image-2.png)

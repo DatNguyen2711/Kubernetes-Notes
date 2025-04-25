@@ -1,4 +1,4 @@
-# Tài liệu vận hành Kubernetes
+# Tài liệu vận hành hệ thống và Kubernetes
 
 ### Table of Contents
 1. Cluster Management
@@ -7,6 +7,10 @@
     - Delete Node
 2. Research
     - Kube-Proxy Network
+3. Server Operations
+    - Resolve DDOS
+
+
 
 ## Cluster Management <a name="manage-cluster"></a>
 - [Clean K8s Worker Node](https://github.com/DatNguyen2711/Kubernetes-Notes/blob/main/k8s/manage-cluster/clean-k8s-worker-node.md)

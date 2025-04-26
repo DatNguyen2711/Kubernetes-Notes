@@ -65,3 +65,4 @@ tail -f /var/log/nginx/forum.gsm.access.log
 iptables -A INPUT -s 35.202.71.100 -p tcp --dport 443 -j DROP 
 iptables -A INPUT -s 35.202.71.100 -p tcp --dport 80 -j DROP 
 ```
+### Server chạy services đểu thì cần éo gì dùng cloud :)))))

@@ -103,7 +103,7 @@ $ kubectl exec -n kube-system cilium-4bk46 -- cilium bpf tunnel list
 
 ### 5. Packet đi qua Mạng Vật lý:
 
-- Packet đã được đóng gói VXLAN được gửi ra card mạng vật lý của Node 1 (ví dụ: `eth0`).
+- Packet đã được đóng gói VXLAN được gửi ra card mạng vật lý của Node 1 (ví dụ: `ens133`).
 - Packet được định tuyến qua mạng vật lý, sử dụng các router và switch thông thường, giống như bất kỳ packet IP nào khác đi giữa Node 1 và Node 2.
 - Packet cuối cùng đến card mạng vật lý của Node 2.
 

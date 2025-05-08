@@ -18,6 +18,26 @@ Mục tiêu của VXLAN là tạo ra ảo giác rằng tất cả các Pod đề
 ### 1. Packet rời Pod A (Node 1):
 
 - Pod A muốn gửi packet đến Pod B (địa chỉ IP ví dụ: `10.244.2.5`).
+
+```bash 
+$ kubectl exec -it ubuntu-pod3  -- ip a
+
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host 
+       valid_lft forever preferred_lft forever
+44: eth0@if45: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000
+    link/ether 36:35:53:59:22:f0 brd ff:ff:ff:ff:ff:ff link-netnsid 0
+    inet 10.0.2.1/32 scope global eth0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::3435:53ff:fe59:22f0/64 scope link 
+       valid_lft forever preferred_lft forever
+
+# eth0 chính là card mạng chính của pod được nối với 1 đầu veth trong Node       
+```       
+
 - **Packet được tạo ra với**:
   - **Source IP**: IP của Pod A (ví dụ: `10.244.1.3`).
   - **Destination IP**: IP của Pod B (`10.244.2.5`).
@@ -39,7 +59,18 @@ Mục tiêu của VXLAN là tạo ra ảo giác rằng tất cả các Pod đề
 
 > Check bằng lệnh **ip route sh** để thấy routing từ pod đến card mạng của CNI (chạy lệnh trên node mà chứa pod cần check), ví dụ khi chạy lệnh thì output sẽ ra như này:
 
-![alt text](image-2.png)
+
+```bash 
+$ ip route sh
+default via 192.168.122.1 dev eth1 proto dhcp src 192.168.122.215 metric 1024 
+10.88.0.0/16 dev cni-podman0 proto kernel scope link src 10.88.0.1 linkdown 
+10.244.0.0/24 dev cni0 proto kernel scope link src 10.244.0.1 
+10.244.2.0/24 via 10.244.1.0 dev flannel.1 onlink 
+172.17.0.0/16 dev docker0 proto kernel scope link src 172.17.0.1 linkdown 
+192.168.61.0/24 dev eth0 proto kernel scope link src 192.168.61.95 
+192.168.122.0/24 dev eth1 proto kernel scope link src 192.168.122.215 
+192.168.122.1 dev eth1 proto dhcp scope link src 192.168.122.215 metric 1024
+```
 
 ### 4. Đóng gói VXLAN (Encapsulation) trên Node 1:
 

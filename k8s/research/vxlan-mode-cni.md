@@ -37,17 +37,36 @@ Mục tiêu của VXLAN là tạo ra ảo giác rằng tất cả các Pod đề
 - Hệ điều hành tra cứu bảng định tuyến của Node 1.
 - Bảng định tuyến của Node 1 có một route cho dải IP của Pod B (`10.244.2.0/24`). Route này chỉ ra rằng để tới dải IP này, packet cần được gửi qua giao diện **VXLAN** của Node 1 (ví dụ: `flannel.1`).
 
+> Check bằng lệnh **ip route sh** để thấy routing từ pod đến card mạng của CNI (chạy lệnh trên node mà chứa pod cần check), ví dụ khi chạy lệnh thì output sẽ ra như này:
+
+![alt text](image-2.png)
+
 ### 4. Đóng gói VXLAN (Encapsulation) trên Node 1:
 
 - Packet gốc (`Source IP: 10.244.1.3, Dest IP: 10.244.2.5`) được chuyển đến giao diện **VXLAN** (`flannel.1`).
-- Giao diện VXLAN biết rằng Pod CIDR `10.244.2.0/24` thuộc về Node 2 (địa chỉ IP vật lý ví dụ: `192.168.1.102`).
+- Giao diện VXLAN biết rằng Pod CIDR `10.244.2.0/24` thuộc về Node 2 (địa chỉ IP vật lý ví dụ: `192.168.100.102`).
+
+> Lý do mà VXLAN có thể biết rằng CIDR `10.244.2.0/24` thuộc về Node 2 (`192.168.100.102`) là do khi CNI sử dụng mode VXLAN thì các CIDR của Pod sẽ có 1 tunnel được nối đến các worker-node. Chạy lệnh **cilium bpf tunnel list** ở trong 1 Pod cilium để có thông tin:
+
+```golang 
+$ kubectl exec -n kube-system cilium-4bk46 -- cilium bpf tunnel list
+                                                                                
+> Here is the output:                                                             
+                                                                                
+  TUNNEL     VALUE                                                              
+  10.0.4.0   192.168.10.168:0                                                   
+  10.0.3.0   192.168.10.169:0                                                   
+  10.0.1.0   192.168.10.204:0                                                   
+  10.0.0.0   192.168.10.162:0     
+```
+
 - Giao diện VXLAN đóng gói packet gốc bằng cách thêm các header mới:
   - **Inner Header**: Packet gốc của Pod (IP header, TCP/UDP header, data).
   - **VXLAN Header**: Thêm một VXLAN header nhỏ, chứa **VNI** (VXLAN Network Identifier) để phân biệt các mạng overlay khác nhau nếu có.
-  - **Outer UDP Header**: Thêm một UDP header với port đích là 4789 (port chuẩn của VXLAN).
+  - **Outer UDP Header**: Thêm một UDP header với port đích là 8472 (port của VXLAN).
   - **Outer IP Header**:
-    - **Source IP**: IP vật lý của Node 1 (ví dụ: `192.168.1.101`).
-    - **Destination IP**: IP vật lý của Node 2 (ví dụ: `192.168.1.102`).
+    - **Source IP**: IP vật lý của Node 1 (ví dụ: `192.168.100.101`).
+    - **Destination IP**: IP vật lý của Node 2 (ví dụ: `192.168.100.102`).
   - **Outer Ethernet Header**: Thêm một Ethernet header mới với MAC đích là MAC của router/gateway tiếp theo trên mạng vật lý để đến Node 2.
 - Lúc này, packet trông giống như một packet UDP thông thường đi từ IP vật lý của Node 1 đến IP vật lý của Node 2.
 
@@ -59,8 +78,8 @@ Mục tiêu của VXLAN là tạo ra ảo giác rằng tất cả các Pod đề
 
 ### 6. Packet đi vào Node 2 (qua card mạng vật lý và Giao diện VXLAN):
 
-- Card mạng vật lý của Node 2 nhận packet UDP có đích là IP vật lý của Node 2 và port 4789.
-- Kernel của Node 2 nhận diện packet này dành cho giao diện **VXLAN** (`flannel.1`) vì nó đến trên port 4789.
+- Card mạng vật lý của Node 2 nhận packet UDP có đích là IP vật lý của Node 2 và port 8472.
+- Kernel của Node 2 nhận diện packet này dành cho giao diện **VXLAN** (`flannel.1`) vì nó đến trên port 8472.
 - Packet được chuyển đến giao diện VXLAN.
 
 ### 7. Giải đóng gói VXLAN (Decapsulation) trên Node 2:

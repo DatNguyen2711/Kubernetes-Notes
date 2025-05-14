@@ -49,6 +49,37 @@ $ kubectl exec -it ubuntu-pod3  -- ip a
 
 - Packet xuất hiện ở đầu **veth** còn lại của Pod A nằm trong **network namespace** gốc của Node 1.
 - Đầu **veth** này được gắn vào **Linux bridge** (ví dụ: `cbr0`).
+
+> Lý do để biết tại sao VETH gắn vào Linux bridge, khi check thông tin card veth thì chúng ta thấy có đoạn 10: vetheaa97948@if4: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue master **cni0** state UP mode DEFAULT group default
+
+```bash 
+
+# Inspect the network configuration on the minikube host
+$ ip link sh
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP mode DEFAULT group default qlen 1000
+    link/ether 52:54:00:37:09:5c brd ff:ff:ff:ff:ff:ff
+3: eth1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP mode DEFAULT group default qlen 1000
+    link/ether 52:54:00:ea:1b:4a brd ff:ff:ff:ff:ff:ff
+4: sit0@NONE: <NOARP> mtu 1480 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/sit 0.0.0.0 brd 0.0.0.0
+5: docker0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN mode DEFAULT group default 
+    link/ether 02:42:7e:1b:3c:46 brd ff:ff:ff:ff:ff:ff
+6: cni-podman0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN mode DEFAULT group default qlen 1000
+    link/ether aa:8b:b8:3b:ae:0d brd ff:ff:ff:ff:ff:ff
+8: flannel.1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue state UNKNOWN mode DEFAULT group default 
+    link/ether 3e:7d:76:2a:39:82 brd ff:ff:ff:ff:ff:ff
+9: cni0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue state UP mode DEFAULT group default qlen 1000
+    link/ether c6:ae:d0:e6:66:cc brd ff:ff:ff:ff:ff:ff
+    
+$ ethtool -S vetheaa97948
+NIC statistics:
+     peer_ifindex: 4
+10: vetheaa97948@if4: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue master cni0 state UP mode DEFAULT group default 
+    link/ether 0e:52:e0:c4:14:74 brd ff:ff:ff:ff:ff:ff link-netnsid 0
+
+```
 - Bridge tra cứu bảng MAC của nó để tìm MAC address của địa chỉ IP đích (`10.244.2.5`). Tuy nhiên, vì `10.244.2.5` nằm ngoài bridge này, bridge sẽ gửi packet lên lớp mạng cao hơn để xử lý định tuyến.
 
 ### 3. Routing trên Node 1:
@@ -138,12 +169,86 @@ $ kubectl exec -n kube-system cilium-4bk46 -- cilium bpf tunnel list
 
 ![alt text](image-1.png)
 
+**Flannel**
+
+```bash 
+Pod -> veth -> bridge (cni0) -> VXLAN (flannel.1) -> eth0
+
+Dùng IPAM, routing, bridging truyền thống.
+```
+
 > Đối với Cilium dùng VXLAN mode, Routing sẽ được xử lý ở eBPF sâu bên trong Kernel. Về cơ bản packet vẫn sẽ đi từ card eth0 của pod -> card LXC.... (nằm trên mỗi node mà pod chạy) -> xử lý routing = eBPF (đoạn này card cilium_vxlan sẽ xử lý) đẩy gói tin lên card mạng eth0 hoặc ens... của node -> traffic đi dần dần vào Node khác rồi decapselated packet chuyển dần vào pod 2
 
+**Khác so với calico, flannel hay canal sẽ routing từ VETH đến 1 CNI bridge network thì cilium sẽ xử lý eBPF thay vì chuyển packet qua nhiều lớp mạng**
+
+**Cilium**
+
+```c++ 
+pod -> veth -> eBPF:from-container -> cilium-vxlan -> eth0
+
+eBPF xử lý từng bước:
+
+    from-container
+
+    to-overlay
+
+    to-netdev
+
+=> Không cần routing table / iptables / bridges.
+```
 ![alt text](image-3.png)
 
+# So sánh Cilium vs Calico vs Flannel (Về Routing & Xử lý Packet)
 
-## Tóm tắt:
+## 1. Kiến trúc xử lý Packet (Data Path)
+
+| Thành phần             | Flannel/Calico (veth/bridge/iproute)                        | Cilium (eBPF-based)                                          |
+|------------------------|-------------------------------------------------------------|--------------------------------------------------------------|
+| Packet flow            | Pod → veth → bridge (cni0) → routing table → VXLAN          | Pod → veth → eBPF (from-container) → overlay/netdev          |
+| Routing                | Qua Linux routing table + iptables                          | Dùng eBPF map lookup trực tiếp trong kernel                  |
+| Overlay encapsulation  | Thực hiện trong user/kernel space, thường dùng VXLAN        | Có thể dùng VXLAN/Geneve hoặc native routing (no overlay)    |
+| Cơ chế chính           | Linux Bridge, iptables, conntrack                           | eBPF programs gắn trực tiếp lên interface                    |
+
+---
+
+## 2. Debug và Visibility
+
+| Thành phần         | Flannel/Calico                                      | Cilium                                                        | 
+|--------------------|-----------------------------------------------------|---------------------------------------------------------------|
+| Quan sát lưu lượng | Phải xem `iptables`, `conntrack`, `ip route`, etc.  | Dùng `cilium monitor`, `cilium bpf`, `cilium policy trace`    |
+| Debug rule policy  | Iptables rule hoặc Calico policy log                | BPF maps theo từng policy, kiểm soát đến từng packet          |
+| Tracing            | Gặp giới hạn của netfilter, khó trace chi tiết      | Có thể trace từng bước trong eBPF pipeline dễ dàng            |
+
+---
+
+## 3. Hiệu năng & Mở rộng (Performance & Scalability)
+
+| Thành phần             | Flannel/Calico                                 | Cilium                                                            |
+|------------------------|------------------------------------------------|-------------------------------------------------------------------|
+| Overhead xử lý         | Context switch nhiều giữa user/kernel space    | Xử lý inline trong kernel bằng eBPF, gần như không context switch |
+| NAT                    | Thường xuyên dùng SNAT                         | Có thể tắt NAT, dùng routing gốc                                  |
+| Khả năng mở rộng policy| Giới hạn khi rules lớn                         | eBPF maps có thể scale tới hàng ngàn rule mà vẫn ổn định          |
+| Tốc độ truyền gói tin  | Trung bình                                     | Rất cao (do bypass iptables + bridge + routing table)             |
+
+---
+
+## 4. Tổng kết Flow
+
+### Flannel (hoặc Calico)
+
+```bash 
+Pod -> veth -> cni0 bridge -> VXLAN (flannel.1) -> eth0 -> physical net
+```
+### Cilium
+
+```bash 
+Pod -> veth -> eBPF:from-container -> eBPF:to-overlay -> cilium-vxlan -> eth0
+```
+
+
+
+
+# Tóm tắt:
 
 - Packet từ Pod A đến Pod B (khác node) được đóng gói bên trong một packet UDP/IP giữa hai Node vật lý.
 - Node nguồn thực hiện đóng gói (encapsulation) VXLAN dựa trên bảng định tuyến Pod CIDR.
@@ -155,7 +260,7 @@ Chế độ VXLAN cho phép tạo ra một mạng overlay đơn giản, không y
 
 
 
-## Sources
+# Sources
 
 [Kubernetes with CNI cilium deep dive](https://addozhang.medium.com/kubernetes-network-learning-with-cilium-and-ebpf-aafbf3163840)
 

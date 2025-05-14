@@ -77,7 +77,7 @@ default via 192.168.122.1 dev eth1 proto dhcp src 192.168.122.215 metric 1024
 - Packet gốc (`Source IP: 10.244.1.3, Dest IP: 10.244.2.5`) được chuyển đến giao diện **VXLAN** (`flannel.1`).
 - Giao diện VXLAN biết rằng Pod CIDR `10.244.2.0/24` thuộc về Node 2 (địa chỉ IP vật lý ví dụ: `192.168.100.102`).
 
-> Lý do mà VXLAN có thể biết rằng CIDR `10.244.2.0/24` thuộc về Node 2 (`192.168.100.102`) là do khi CNI sử dụng mode VXLAN thì các CIDR của Pod sẽ có 1 tunnel được nối đến các worker-node. Chạy lệnh **cilium bpf tunnel list** ở trong 1 Pod cilium để có thông tin:
+> Lý do mà VXLAN có thể biết rằng CIDR `10.244.2.0/24` thuộc về Node 2 (`192.168.100.102`) là do khi CNI sử dụng mode VXLAN thì các CIDR của Pod sẽ có 1 tunnel được nối đến các worker-node. Chạy lệnh **cilium bpf tunnel list** ở trong 1 Pod cilium để có thông tin **Trong trường hợp dùng cilium**
 
 ```golang 
 $ kubectl exec -n kube-system cilium-4bk46 -- cilium bpf tunnel list
@@ -138,6 +138,11 @@ $ kubectl exec -n kube-system cilium-4bk46 -- cilium bpf tunnel list
 
 ![alt text](image-1.png)
 
+> Đối với Cilium dùng VXLAN mode, Routing sẽ được xử lý ở eBPF sâu bên trong Kernel. Về cơ bản packet vẫn sẽ đi từ card eth0 của pod -> card LXC.... (nằm trên mỗi node mà pod chạy) -> xử lý routing = eBPF (đoạn này card cilium_vxlan sẽ xử lý) đẩy gói tin lên card mạng eth0 hoặc ens... của node -> traffic đi dần dần vào Node khác rồi decapselated packet chuyển dần vào pod 2
+
+![alt text](image-3.png)
+
+
 ## Tóm tắt:
 
 - Packet từ Pod A đến Pod B (khác node) được đóng gói bên trong một packet UDP/IP giữa hai Node vật lý.
@@ -147,3 +152,13 @@ $ kubectl exec -n kube-system cilium-4bk46 -- cilium bpf tunnel list
 - Packet gốc được trả lại stack mạng của Node đích và sau đó được định tuyến cục bộ đến Pod đích thông qua bridge và veth pair.
 
 Chế độ VXLAN cho phép tạo ra một mạng overlay đơn giản, không yêu cầu cấu hình định tuyến phức tạp trên mạng vật lý cho từng Pod CIDR. Mạng vật lý chỉ cần có khả năng định tuyến giữa các Node Kubernetes.
+
+
+
+## Sources
+
+[Kubernetes with CNI cilium deep dive](https://addozhang.medium.com/kubernetes-network-learning-with-cilium-and-ebpf-aafbf3163840)
+
+[How pod communcate with pod in another node](https://www.redhat.com/en/blog/kubernetes-pods-communicate-nodes)
+
+[kubernetes vxlan network with flannel](https://addozhang.medium.com/learning-kubernetes-vxlan-network-with-flannel-2d6a58c95300)

@@ -1,5 +1,4 @@
-# Tài liệu vận hành hệ thống và Kubernetes
-
+# Kubernetes and seystem operation documents 
 ### Table of Contents
 1. Cluster Management
     - Clean K8s Worker Node

@@ -266,4 +266,4 @@ Chế độ VXLAN cho phép tạo ra một mạng overlay đơn giản, không y
 
 [How pod communcate with pod in another node](https://www.redhat.com/en/blog/kubernetes-pods-communicate-nodes)
 
-[kubernetes vxlan network with flannel](https://addozhang.medium.com/learning-kubernetes-vxlan-network-with-flannel-2d6a58c95300)
+[kubernetes VXLAN network with flannel](https://addozhang.medium.com/learning-kubernetes-vxlan-network-with-flannel-2d6a58c95300)

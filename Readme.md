@@ -7,6 +7,7 @@
 2. Research
     - Kube-Proxy Network
     - VXLAN mode on CNI
+    - CPU compute
 3. Server Operations
     - Resolve DDOS
 
@@ -21,3 +22,4 @@
 ## Research <a name="research"></a>
 - [Kube-Proxy Network](https://github.com/DatNguyen2711/Kubernetes-Notes/blob/main/k8s/research/kube-proxy-network.md)
 - [VXLAN mode CNI](https://github.com/DatNguyen2711/Kubernetes-Operations-and-Research/blob/main/k8s/research/vxlan-mode-cni.md)
+- [CPU compute](https://github.com/DatNguyen2711/Kubernetes-Notes/blob/main/k8s/research/cpu.md)
